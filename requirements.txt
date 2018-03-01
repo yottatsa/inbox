@@ -1,1 +1,3 @@
 emails
+html2text
+scikit-learn[alldeps]
