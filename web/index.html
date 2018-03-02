@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Box</title>
+    <script src="react@16/umd/react.development.js"></script>
+    <script src="react-dom@16/umd/react-dom.development.js"></script>
+    <script src="babel-standalone@6.15.0/babel.min.js"></script>
+    <script src="jquery/jquery-3.3.1.min.js"></script>
+    <link rel="stylesheet" href="bootstrap/4.0.0/css/bootstrap.min.css">
+  </head>
+  <body>
+    <div id="root" class="container-fluid"></div>
+    <style type="text/css">
+      .mailbox {
+        background-color: #f0f0f0;
+        padding: 1em;
+        font-size: 0.9em;
+      }
+      .day-from {
+        font-size: 0.9em;
+        font-weight: bold;
+        color: #999;
+        font-variant: small-caps;
+        padding: 0.5em 0;
+      }
+      .topic-item {
+        background-color: white;
+        min-height: 3em;
+      }
+      .topic-item-logo {
+        width: 2em;
+      }
+      .message-preview {
+        color: #999;
+      }
+
+    </style>
+    <script type="text/babel">
+      function Message(props) {
+        return (
+          <span class="message">
+            <span class="message-subject">{props.message.subject}</span>
+            <span class="message-preview"> &ndash; {props.message.preview}</span>
+          </span>
+        );
+      }
+
+      function Topic(props) {
+        return (
+          <div class="topic border border-top-0">
+            {props.topic.messages.map((message, i) =>
+              {
+                if (i == 0) {
+                  return (
+                    <div class="topic-item row align-items-center">
+                      <div class="col-sm-1">
+                        <img class="topic-item-logo rounded-circle" src={props.topic.avatar} />
+                      </div>
+                      <div class="col-sm-2">{props.topic.from}</div>
+                      <div class="col-xl-auto">
+                        <Message message={message}/>
+                      </div>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div class="topic-item row align-items-center">
+                      <div class="offset-sm-3 col-xl-auto">
+                        <Message message={message}/>
+                      </div>
+                    </div>
+                  );
+                }
+              }
+            )}
+          </div>
+        );
+      }
+
+      function Day(props) {
+        return (
+          <div class="day container-fluid">
+            <div class="row">
+              <div class="offset-sm-1 col-sm-2">
+                <div class="day-from">{props.date}</div>
+              </div>
+            </div>
+            {props.topics.map((topic) =>
+              <Topic topic={topic} />
+            )}
+          </div>
+        );
+      }
+
+      class Mailbox extends React.Component {
+        constructor(props) {
+          super(props);
+          this.state = {messages: []};
+        }
+
+        componentDidMount() {
+         this.MessagesList();
+        }
+
+        MessagesList() {
+          $.getJSON('/api/messages.json')
+            .then((results) => this.setState(results));
+        }
+
+        render () {
+          return (
+            <div class="mailbox">
+              {this.state.messages.map(i =>
+                <Day date={i.date} topics={i.topics} />
+              )}
+            </div>
+          );
+        }
+      }
+
+      const app = (
+        <Mailbox />
+      )
+      ReactDOM.render(
+        app,
+        document.getElementById('root')
+      );
+
+    </script>
+  </body>
+</html>

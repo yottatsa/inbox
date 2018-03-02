@@ -5,23 +5,22 @@ import functools
 import os
 import datetime
 import dateutil.parser
-from typing import NamedTuple, Tuple, Dict, Optional, List
+from typing import NamedTuple, Tuple, Dict, Optional, List, Any
 import pickle
 import emails.loader
 from emails.loader.local_store import MsgLoader as MsgLoaderBase
 from emails.loader.helpers import COMMON_CHARSETS
 import emails.message
-import html2text
-
-h2t = html2text.HTML2Text()
-h2t.ignore_links = True
-h2t.ignore_tables = True
+import lxml.html
 
 
 def get_text(msg: str) -> str:
-    msg = h2t.handle(msg)
+    page = lxml.html.document_fromstring(msg)
+    msg = page.cssselect('body')[0].text_content()
     msg = msg.replace('-', ' ')
     msg = msg.replace('|', ' ')
+    msg = msg.replace('\n', ' ')
+    msg = msg.replace('\r', ' ')
     return ' '.join(msg.split())
 
 
@@ -38,6 +37,7 @@ class Metadata(NamedTuple):
     subject: str
     date: datetime.datetime
     tokens: str
+    preview: str
 
 
 class Store(object):
@@ -46,6 +46,7 @@ class Store(object):
     def __init__(self, db: str) -> None:
         self.db = db
         self.metadata: Dict[str, Metadata] = {}
+        self.labels: Dict[str, Any] = {}
         self.encodings = COMMON_CHARSETS[1:]
         self.encoding_metadata: Dict[str, str] = {}
 
@@ -129,9 +130,14 @@ class Message(object):
             subject=subject,
             date=dateutil.parser.parse(message._headers['date']),
             tokens=' '.join(filter(lambda i: i is not None, tokens)),
+            preview=text[:30],
         )
         self.store.metadata[self.msgid] = metadata
         return metadata
+
+    @property
+    def labels(self) -> Dict[str, Any]:
+        return self.store.labels.setdefault(self.msgid, {})
 
     @property
     @functools.lru_cache()

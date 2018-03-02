@@ -1,4 +1,9 @@
 eml
 venv
-
+web/avatars
+web/bootstrap
+web/babel*
+web/react*
+web/jquery*
 __pycache__
+*.pyc

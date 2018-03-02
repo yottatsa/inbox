@@ -1,3 +1,4 @@
+flask
+arrow
 emails
-html2text
 scikit-learn[alldeps]
