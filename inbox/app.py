@@ -3,9 +3,9 @@
 import os
 import flask
 import datetime
-import arrow
+from babel.dates import format_timedelta
 
-from .classifier import group_messages
+from .classifier import group_messages, get_title
 
 
 def root_dir():
@@ -42,17 +42,22 @@ def App(name, store):
         ):
             if not first_date:
                 first_date = msg.metadata.date
-            if first_date - msg.metadata.date > datetime.timedelta(days=7):
-                date = arrow.get(msg.metadata.date).ceil('week').humanize()
+            delta = first_date - msg.metadata.date
+            if delta < datetime.timedelta(days=7):
+                date = format_timedelta(delta, threshold=1.2, locale='en_US')
+            elif delta < datetime.timedelta(days=30):
+                date = format_timedelta(delta,
+                                        granularity='week', locale='en_US')
             else:
-                date = arrow.get(msg.metadata.date).ceil('day').humanize()
+                date = format_timedelta(delta,
+                                        granularity='month', locale='en_US')
 
             if not prev_date or prev_date != date:
                 topics = []
                 messages.append({'date': date, 'topics': topics})
                 topics_messages = {}
                 prev_date = date
-            title = msg.labels['group'].title()
+            title = str(get_title(msg.labels))
             if title not in topics_messages:
                 avatar = os.path.join('avatars', f'{title}.png')
                 topics.append({

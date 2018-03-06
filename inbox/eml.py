@@ -61,7 +61,7 @@ class MsgLoader(MsgLoaderBase):
     common_charsets = [sys.getdefaultencoding()]
 
     def filter_header(self, name):
-        if name in ['date']:
+        if name in ['date', 'message-id', 'references']:
             return True
         return super(MsgLoader, self).filter_header(name)
 
@@ -82,6 +82,7 @@ class Metadata(NamedTuple):
     mail_to: List[Tuple[Optional[str], Optional[str]]]
     subject: str
     date: datetime.datetime
+    references: List[str]
     tokens: List[List[str]]
     preview: str
 
@@ -174,11 +175,19 @@ class Message(object):
                 tokens.append(words(tokenize(r[0])))
             tokens.append(r[1])
 
+        references = [
+            r for r in message._headers.get('references', '').split() if r
+        ]
+        message_id = message._headers.get('message-id', '').strip()
+        if message_id:
+            references.append(message_id)
+
         metadata = Metadata(
             mail_from=message.mail_from,
             mail_to=message.mail_to,
             subject=subject,
             date=dateutil.parser.parse(message._headers['date']),
+            references=references,
             tokens=tokens,
             preview=text[:200],
         )
