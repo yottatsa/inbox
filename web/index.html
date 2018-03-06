@@ -2,6 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
+    <meta content="width=device-width, initial-scale=1" name="viewport">
     <title>Box</title>
     <script src="react@16/umd/react.development.js"></script>
     <script src="react-dom@16/umd/react-dom.development.js"></script>
@@ -15,10 +16,9 @@
       .mailbox {
         background-color: #f0f0f0;
         padding: 1em;
-        font-size: 0.9em;
       }
       .day-from {
-        font-size: 0.9em;
+        font-size: 0.8em;
         font-weight: bold;
         color: #999;
         font-variant: small-caps;
@@ -26,10 +26,16 @@
       }
       .topic-item {
         background-color: white;
-        min-height: 3em;
+        min-height: 2.5em;
+      }
+      .topic-item-from {
+        font-size: 0.9em;
       }
       .topic-item-logo {
         width: 2em;
+      }
+      .message {
+        font-size: 0.9em;
       }
       .message-preview {
         color: #999;
@@ -38,10 +44,12 @@
     </style>
     <script type="text/babel">
       function Message(props) {
+        const trim = 110 - props.message.subject.length;
+        const preview = props.message.preview.substring(0, trim).trim();
         return (
           <span class="message">
             <span class="message-subject">{props.message.subject}</span>
-            <span class="message-preview"> &ndash; {props.message.preview}</span>
+            <span class="message-preview"> &ndash; {preview}...</span>
           </span>
         );
       }
@@ -57,7 +65,11 @@
                       <div class="col-sm-1">
                         <img class="topic-item-logo rounded-circle" src={props.topic.avatar} />
                       </div>
-                      <div class="col-sm-2">{props.topic.from}</div>
+                      <div class="col-sm-2">
+                        <span class="topic-item-from">
+                          {props.topic.from}
+                        </span>
+                      </div>
                       <div class="col-xl-auto">
                         <Message message={message}/>
                       </div>

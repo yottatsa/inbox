@@ -1,4 +1,4 @@
-all: build run
+all: run
 
 venv:
 	python3 -m venv $@
@@ -16,11 +16,26 @@ web/bootstrap%:
 web/jquery%:
 	curl -L --create-dirs -o $@ https://code.jquery.com/$(@:web/jquery/%=%)
 
-build: venv/requirements.txt web/react@16/umd/react.development.js web/react-dom@16/umd/react-dom.development.js web/babel-standalone@6.15.0/babel.min.js web/bootstrap/4.0.0/css/bootstrap.min.css web/bootstrap/4.0.0/css/bootstrap.min.css.map web/jquery/jquery-3.3.1.min.js
+~/nltk_data/tokenizers/punkt/README: venv/requirements.txt
+	sh -c '. ./venv/bin/activate; python3 -c "import nltk; nltk.download(\"punkt\")"'
+	touch $@
 
-run: build
+~/nltk_data/misc/perluniprops/Number.txt: venv/requirements.txt
+	sh -c '. ./venv/bin/activate; python3 -c "import nltk; nltk.download(\"perluniprops\")"'
+	touch $@
+
+~/nltk_data/corpora/stopwords/README: venv/requirements.txt
+	sh -c '. ./venv/bin/activate; python3 -c "import nltk; nltk.download(\"stopwords\")"'
+	touch $@
+
+bootstrap: ~/nltk_data/tokenizers/punkt/README ~/nltk_data/misc/perluniprops/Number.txt web/react@16/umd/react.development.js web/react-dom@16/umd/react-dom.development.js web/babel-standalone@6.15.0/babel.min.js web/bootstrap/4.0.0/css/bootstrap.min.css web/bootstrap/4.0.0/css/bootstrap.min.css.map web/jquery/jquery-3.3.1.min.js
+
+clean:
 	rm -f eml/metadata.pickle
-	sh -c '. ./venv/bin/activate; ./venv/bin/python3 -m inbox'
+	find inbox/__pycache__/ -name '*.pyc' -delete || :
 
-.PHONY: all build run
+run: clean bootstrap
+	sh -c '. ./venv/bin/activate; python3 -m inbox'
+
+.PHONY: all bootstrap clean run
 

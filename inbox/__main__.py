@@ -1,7 +1,7 @@
 #!/usr/bin/python3
-from .app import App
+from . import app
 
 
-app = App(__name__)
-app.run()
-app.store.save()
+if __name__ == '__main__':
+    app.run()
+    app.store.save()

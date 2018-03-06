@@ -3,6 +3,7 @@
 import codecs
 import functools
 import os
+import sys
 import datetime
 import dateutil.parser
 from typing import NamedTuple, Tuple, Dict, Optional, List, Any
@@ -12,23 +13,68 @@ from emails.loader.local_store import MsgLoader as MsgLoaderBase
 from emails.loader.helpers import COMMON_CHARSETS
 import emails.message
 import lxml.html
+import nltk
+from nltk.tokenize.moses import MosesDetokenizer
+
+detokenizer = MosesDetokenizer()
+detokenize = detokenizer.detokenize
+tokenize = nltk.tokenize.casual_tokenize
+sent_tokenize = nltk.tokenize.sent_tokenize
+stopwords = nltk.corpus.stopwords.words('english') +\
+            nltk.corpus.stopwords.words('russian')
+stemmer = nltk.stem.snowball.SnowballStemmer("english")
 
 
-def get_text(msg: str) -> str:
+def words(sent: List[str]) -> List[str]:
+    sent = [w.lower() for w in sent if w.isalpha()]
+    sent = [stemmer.stem(w)
+            for w in sent
+            if w not in stopwords]
+    return sent
+
+
+def get_text(msg: str) -> Tuple[str, List[List[str]]]:
     page = lxml.html.document_fromstring(msg)
+
+    for style in page.cssselect('style'):
+        style.getparent().remove(style)
     msg = page.cssselect('body')[0].text_content()
-    msg = msg.replace('-', ' ')
+    msg = msg.replace('---', ' ')
     msg = msg.replace('|', ' ')
-    msg = msg.replace('\n', ' ')
-    msg = msg.replace('\r', ' ')
-    return ' '.join(msg.split())
+    sents = sent_tokenize(msg)
+    sents = [tokenize(sent) for sent in sents]
+    msg = ' '.join((detokenize(sent, return_str=True) for sent in sents))
+    tokens = [words(sent) for sent in sents]
+    return msg, tokens
+
+
+def get_domain_tokens(email: str) -> List[str]:
+    if '@' not in email:
+        return []
+    result = email.rsplit('@', 1)
+    result.extend(result[1].split('.'))
+    return result
 
 
 class MsgLoader(MsgLoaderBase):
+
+    common_charsets = [sys.getdefaultencoding()]
+
     def filter_header(self, name):
         if name in ['date']:
             return True
         return super(MsgLoader, self).filter_header(name)
+
+    def extract_part_text(self, part):
+        charset = part.get_param('charset')
+        cte = str(part.get('content-transfer-encoding', '')).lower()
+        if charset == self.common_charsets[0] and not cte:
+            return part.get_payload(decode=False)
+        else:
+            return self.decode_text(
+                part.get_payload(decode=True),
+                charset=part.get_param('charset')
+            )[0]
 
 
 class Metadata(NamedTuple):
@@ -36,7 +82,7 @@ class Metadata(NamedTuple):
     mail_to: List[Tuple[Optional[str], Optional[str]]]
     subject: str
     date: datetime.datetime
-    tokens: str
+    tokens: List[List[str]]
     preview: str
 
 
@@ -63,7 +109,7 @@ class Store(object):
 
     def _get_encoding(self, path: str) -> List[str]:
         encoding = self.encoding_metadata.get(path)
-        if encoding:
+        if encoding and encoding != self.encodings[0]:
             return [encoding]
         else:
             return self.encodings
@@ -79,6 +125,7 @@ class Store(object):
 
     def reader(self, path: str) -> str:
         filename = self._filename(path)
+
         last_exception: Optional[Exception] = None
         for encoding in self._get_encoding(path):
             try:
@@ -91,12 +138,12 @@ class Store(object):
         if last_exception:
             raise ValueError from last_exception
 
-    def list_messages(self):
-        return (
+    def list_messages(self) -> List['Message']:
+        return [
             Message(self, f)
             for f in os.listdir(self.db)
             if f.endswith('.eml')
-        )
+        ]
 
 
 class Message(object):
@@ -112,25 +159,28 @@ class Message(object):
         if self.msgid in self.store.metadata:
             return self.store.metadata[self.msgid]
         message = self.message
-        email = message.mail_from[1]
         subject = message.subject.replace('\r\n', '')
-        text = get_text(message.html or message.text)
-        tokens = [
-            email and email.rsplit('@', 1)[1], email,
-            message.mail_from[0],
-            subject,
-            text
-        ]
+        text, tokens = get_text(message.html or message.text)
+        tokens.append(words(tokenize(subject)))
+        mdtoken = []
+        if message.mail_from[0]:
+            mdtoken.extend(words(tokenize(message.mail_from[0])))
+        if message.mail_from[1]:
+            mdtoken.append(message.mail_from[1])
+            mdtoken.extend(get_domain_tokens(message.mail_from[1]))
+        tokens.append(mdtoken)
         for r in message.mail_to:
-            tokens.extend(r)
+            if r[0]:
+                tokens.append(words(tokenize(r[0])))
+            tokens.append(r[1])
 
         metadata = Metadata(
             mail_from=message.mail_from,
             mail_to=message.mail_to,
             subject=subject,
             date=dateutil.parser.parse(message._headers['date']),
-            tokens=' '.join(filter(lambda i: i is not None, tokens)),
-            preview=text[:30],
+            tokens=tokens,
+            preview=text[:200],
         )
         self.store.metadata[self.msgid] = metadata
         return metadata

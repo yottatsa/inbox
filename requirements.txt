@@ -1,4 +1,5 @@
-flask
 arrow
 emails
+flask
+nltk
 scikit-learn[alldeps]

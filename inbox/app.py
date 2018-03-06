@@ -5,11 +5,7 @@ import flask
 import datetime
 import arrow
 
-from .eml import Store
 from .classifier import group_messages
-
-
-DB = 'eml'
 
 
 def root_dir():
@@ -21,18 +17,11 @@ def latest(g):
     return max((msg.metadata.date for msg in group.messages)), g[0], g[1]
 
 
-def App(name):
+def App(name, store):
     app = flask.Flask(name)
-    avatar_cache = {}
-    no_avatar = os.path.join('avatars', f'__empty__.png')
-
-    try:
-        store = Store.load(DB)
-    except Exception as e:
-        print(e)
-        store = Store(DB)
-
     app.store = store
+    avatar_cache = {}
+    no_avatar = os.path.join('avatars', '__empty__.png')
 
     @app.route('/')
     def hello():
