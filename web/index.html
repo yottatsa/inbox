@@ -4,11 +4,13 @@
     <meta charset="UTF-8" />
     <meta content="width=device-width, initial-scale=1" name="viewport">
     <title>Box</title>
-    <script src="react@16/umd/react.development.js"></script>
-    <script src="react-dom@16/umd/react-dom.development.js"></script>
     <script src="babel-standalone@6.15.0/babel.min.js"></script>
     <script src="jquery/jquery-3.3.1.min.js"></script>
-    <link rel="stylesheet" href="bootstrap/4.0.0/css/bootstrap.min.css">
+    <script src="react@16/umd/react.development.js"></script>
+    <script src="react-dom@16/umd/react-dom.development.js"></script>
+    <script src="tether/1.4.3/js/tether.min.js"></script>
+    <script src="bootstrap/4.0.0-alpha.6/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="bootstrap/4.0.0-alpha.6/css/bootstrap.min.css">
   </head>
   <body>
     <div id="root" class="container-fluid"></div>
@@ -34,6 +36,25 @@
       .topic-item-logo {
         width: 2em;
       }
+      .topic-item-senders {
+        display: inline;
+        list-style: none;
+      }
+      .topic-item-senders {
+        padding: 0;
+        font-size: 0.9em;
+        display: inline;
+        list-style: none;
+      }
+      .topic-item-senders li {
+        display: inline;
+      }
+      .topic-item-senders li:after {
+        content: ", ";
+      }
+      .topic-item-senders li:last-child:after {
+          content: "";
+      }
       .message {
         font-size: 0.9em;
       }
@@ -43,6 +64,13 @@
 
     </style>
     <script type="text/babel">
+      function countBy (data) {
+        var result = new Map();
+        data.forEach(function (key) {
+          result.set(key, (result.get(key) || 0) + 1);
+        });
+        return result;
+      }
       function Message(props) {
         const trim = 110 - props.message.subject.length;
         const preview = props.message.preview.substring(0, trim).trim();
@@ -56,7 +84,7 @@
 
       function Topic(props) {
         return (
-          <div class="topic border border-top-0">
+          <div class="topic border">
             {props.topic.messages.map((message, i) =>
               {
                 if (i == 0) {
@@ -67,7 +95,7 @@
                       </div>
                       <div class="col-sm-2">
                         <span class="topic-item-from">
-                          {props.topic.from}
+                          {props.topic.title}
                         </span>
                       </div>
                       <div class="col-xl-auto">
@@ -90,6 +118,35 @@
         );
       }
 
+      function Group(props) {
+        const text_color = (props.topic.view == 'updates') ? 'text-warning' : 'text-info';
+        const senders = Array.from(countBy(props.topic.messages.map((msg) => {
+          return msg.sender;
+        })));
+        console.log(senders);
+        return (
+          <div class="topic border border-top-0">
+            <div class="topic-item row align-items-center">
+              <div class="offset-sm-1 col-sm-2">
+                <span className={text_color + ' topic-item-from'}>
+                  {props.topic.title}
+                </span>
+              </div>
+              <div class="col-xl-auto">
+                <ul class="topic-item-senders">
+                  {
+                    senders.map((sender) => {
+                      return (<li>{sender[0]} <small>({sender[1]})</small></li>);
+                    })
+                  }
+                </ul>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+
       function Day(props) {
         return (
           <div class="day container-fluid">
@@ -98,9 +155,13 @@
                 <div class="day-from">{props.date}</div>
               </div>
             </div>
-            {props.topics.map((topic) =>
-              <Topic topic={topic} />
-            )}
+            {props.topics.map((topic) => {
+              if (topic.view == 'promos' || topic.view == 'updates') {
+                return (<Group topic={topic} />);
+              } else {
+                return (<Topic topic={topic} />);
+              }
+            })}
           </div>
         );
       }

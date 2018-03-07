@@ -5,7 +5,7 @@ import flask
 import datetime
 from babel.dates import format_timedelta
 
-from .classifier import group_messages, get_title
+from .classifier import group_messages, get_group
 
 
 def root_dir():
@@ -34,17 +34,18 @@ def App(name, store):
     def messages():
         messages = []
         prev_date = None
-        first_date = None
+        now = datetime.datetime.now(datetime.timezone.utc)
         for msg in sorted(
             group_messages(store).list_messages(),
             key=lambda msg: msg.metadata.date,
             reverse=True
         ):
-            if not first_date:
-                first_date = msg.metadata.date
-            delta = first_date - msg.metadata.date
+            if not now:
+                now = msg.metadata.date
+            delta = now - msg.metadata.date
             if delta < datetime.timedelta(days=7):
-                date = format_timedelta(delta, threshold=1.2, locale='en_US')
+                date = format_timedelta(delta,
+                                        granularity='day', locale='en_US')
             elif delta < datetime.timedelta(days=30):
                 date = format_timedelta(delta,
                                         granularity='week', locale='en_US')
@@ -57,11 +58,13 @@ def App(name, store):
                 messages.append({'date': date, 'topics': topics})
                 topics_messages = {}
                 prev_date = date
-            title = str(get_title(msg.labels))
+            group, sender = get_group(msg)
+            title = str(group)
             if title not in topics_messages:
                 avatar = os.path.join('avatars', f'{title}.png')
                 topics.append({
-                    'from': title,
+                    'view': group.__class__.__name__.lower(),
+                    'title': title,
                     'avatar': avatar_cache.setdefault(
                         title,
                         os.path.exists(os.path.join(
@@ -73,6 +76,7 @@ def App(name, store):
                     'messages': topics_messages.setdefault(title, []),
                 })
             topics_messages[title].append({
+                                'sender': sender,
                                 'subject': msg.metadata.subject,
                                 'preview': msg.metadata.preview,
                             })

@@ -6,9 +6,9 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer
 
 from collections import Counter
-from typing import Dict, NamedTuple, Any, Set
+from typing import Dict, NamedTuple, Any, Set, Tuple
 
-from .eml import Store
+from .eml import Store, Message
 
 DEBUG = False
 
@@ -76,6 +76,7 @@ class Conversation(BaseConversation):
 
 
 class Inquiry(object):
+
     def __init__(self, conversation, label):
         self.conversation = conversation
         self.label = label
@@ -84,12 +85,21 @@ class Inquiry(object):
         return f'{self.label.__str__()}: {self.conversation.__str__()}'  # FIXME
 
 
-class Promo(object):
+class BaseComposite(object):
+
     def __init__(self, label):
         self.label = label
 
     def __str__(self):
-        return f'Promo'  # FIXME
+        return self.__class__.__name__
+
+
+class Promos(BaseComposite):
+    pass
+
+
+class Updates(BaseComposite):
+    pass
 
 
 Labels = Any
@@ -163,18 +173,23 @@ def group_messages(store: Store) -> Store:
     return group_messages_by_clustering(group_messages_by_headers(store))
 
 
-def get_title(labels: Dict[str, Labels]) -> Labels:
+def get_group(msg: Message) -> Tuple[Labels, str]:
+    labels = msg.labels
     conversation: Conversation = labels['conversation']
     label = labels['label']
     if DEBUG:
-        return label
+        return label, msg.metadata.mail_from[1]
+    else:
+        mail_from = msg.metadata.mail_from[0] or msg.metadata.mail_from[1]
     if conversation.active():
         if label.size() > conversation.size():
-            return Inquiry(label=label, conversation=conversation)
-        return conversation
+            return Inquiry(label=label, conversation=conversation), mail_from
+        return conversation, mail_from
     if (label.small() and label.size() < conversation.size()) or \
        PROMO.intersection(conversation.senders.keys()):
-        return Promo(label=label)
+        return Promos(label=label), str(label)
     elif label.small():
         print('promo', label, conversation.senders)
-    return label
+    else:
+        return Updates(label=label), str(label)
+    return label, str(label)

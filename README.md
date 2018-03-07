@@ -24,7 +24,7 @@ todo
 
 * Rendering
   - day-[category]-label-messages
-  - show more context in the accordeon
+  - show less in line, show more context in the accordeon
   - greedy renderer for promos
   - Neat renderers for personal emails (image carousel, attach, preview)
 * Categories
